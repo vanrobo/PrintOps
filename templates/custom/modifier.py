@@ -25,9 +25,8 @@ def generate(path: str, **kwargs):
     is_stl = file_path.lower().endswith(".stl")
 
     if is_stl:
-            # ==========================================
             # STL BYPASS MODE (Prevents C++ Crash)
-            # ==========================================
+
             print(f"\n[dim]Detected STL. Using Slicer-Merge bypass...[/dim]")
 
             # 1. Load the base mesh
@@ -48,9 +47,8 @@ def generate(path: str, **kwargs):
             export_stl(combined_shape, path)
 
     else:
-        # ==========================================
         # STEP MODE (True Solid Math)
-        # ==========================================
+
         print(f"\n[dim]Detected STEP. Using True Solid Math...[/dim]")
         
         base_shape = import_step(file_path)
@@ -68,7 +66,6 @@ def generate(path: str, **kwargs):
         export_stl(final_part.part, path)
 
 def calibrate(file_path: str, txt: str, size: float):
-    # Live 3D GUI Calibrator
     try:
         from vedo import Mesh, Plotter, Text2D
     except ImportError:

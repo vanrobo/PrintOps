@@ -14,34 +14,50 @@ from rich.prompt import Prompt, Confirm
 from rich.progress import track
 from rich.panel import Panel
 
-# Local Engine Imports
 from engine import config_manager, slicer_engine, project_manager
 
-# --- UI CONSTANTS ---
-cust_theme = {"primary": "orange1", "gray": "#D4D4D4", "darker": "#454545"}
-console = Console(theme=Theme(cust_theme))
-line, dot = "│", "[bold gray]◇[/bold gray]"
+# python main.py config --set-theme theme_name
 
-large_text=r'''│  _____  _____  _____ _   _ _______ ____  _____   _____ 
-│ |  __ \|  __ \|_   _| \ | |__   __/ __ \|  __ \ / ____|
-│ | |__) | |__) | | | |  \| |  | | | |  | | |__) | (___  
-│ |  ___/|  _  /  | | | . ` |  | | | |  | |  ___/ \___ \ 
-│ | |    | | \ \ _| |_| |\  |  | | | |__| | |     ____) |
-│ |_|    |_|  \_\_____|_| \_|  |_|  \____/|_|    |_____/ '''
+THEMES = {
+    "printops":  {"primary": "#FF8C00", "gray": "#A3A3A3", "darker": "#555555", "accent": "#FFD700"}, # Industrial Orange
+    "cyberpunk": {"primary": "#00FFCC", "gray": "#B388FF", "darker": "#4A148C", "accent": "#FF00FF"}, # Neon Vibes
+    "hacker":    {"primary": "#00FF41", "gray": "#008F11", "darker": "#003B00", "accent": "#00FF41"}, # Matrix Green
+    "ocean":     {"primary": "#00BFFF", "gray": "#B0E0E6", "darker": "#1E90FF", "accent": "#00FA9A"}, # Deep Blue
+    "dracula":   {"primary": "#BD93F9", "gray": "#6272A4", "darker": "#282A36", "accent": "#FF79C6"}, # Classic Dark Mode
+    "nord":      {"primary": "#88C0D0", "gray": "#D8DEE9", "darker": "#2E3440", "accent": "#A3BE8C"}, # Arctic Frost
+    "retro":     {"primary": "#FF5F5F", "gray": "#F5F5DC", "darker": "#2B2B2B", "accent": "#FFD700"}, # 80's Arcade
+    "forest":    {"primary": "#2D5A27", "gray": "#A0AC9D", "darker": "#1B3022", "accent": "#F0E68C"}, # Deep Woodland
+    "sunset":    {"primary": "#FF4E50", "gray": "#FC9483", "darker": "#2D132C", "accent": "#F9D423"}, # Horizon Glow
+    "monochrome": {"primary": "#FFFFFF", "gray": "#757575", "darker": "#000000", "accent": "#E0E0E0"} # Stark Minimalist
+}
+prefs = config_manager.load_prefs()
+active_theme = prefs.get("theme", "printops")
+if active_theme not in THEMES:
+    active_theme = "printops"
 
-# --- HEAVY IMPORTS (Done in background) ---
+cust_theme = THEMES[active_theme]
+console = Console(theme=Theme(cust_theme), force_terminal=True)
+
+line = f"[{cust_theme['darker']}]│[/]"
+dot  = f"[{cust_theme['primary']}]◇[/]"
+prompt_styles = {
+    "choices_style": "accent",
+    "default_style": "gray",
+}
+large_text = r'''  _____  _____  _____ _   _ _______ ____  _____   _____ 
+ |  __ \|  __ \|_   _| \ | |__   __/ __ \|  __ \ / ____|
+ | |__) | |__) | | | |  \| |  | | | |  | | |__) | (___  
+ |  ___/|  _  /  | | | . ` |  | | | |  | |  ___/ \___ \ 
+ | |    | | \ \ _| |_| |\  |  | | | |__| | |     ____) |
+ |_|    |_|  \_\_____|_| \_|  |_|  \____/|_|    |_____/ '''
+
+
 from build123d import *
 
-# --- TYPER APP INSTANCE ---
 app = typer.Typer(help="PrintOps Sovereign - Industrial Hardware Agent")
-
-# ==========================================
-# CORE HELPERS
-# ==========================================
 
 def get_output_dir() -> Path:
     """Fetches the user's preferred output directory, defaulting to 'outputs'."""
-    prefs = config_manager.load_prefs()
     out_dir = prefs.get("output_dir", "outputs")
     path = Path(out_dir)
     path.mkdir(parents=True, exist_ok=True)
@@ -51,10 +67,10 @@ def show_header():
     """Renders the branded CLI header and exact boot time."""
     duration_ms = round((time.perf_counter() - start_time) * 1000)
     console.print(line)
-    console.print(f"[primary]{dot}\n{large_text}\n{dot}[/primary]")
+    console.print(f"[primary]{large_text}[/primary]")
     console.print(line)
-    console.print(dot, f"[bold][primary]PrintOps Terminal Agent[/primary][/bold] [gray]ready in[/gray]", f"[white]{duration_ms}[/white]ms")
-    console.print(line, "[dim][darker]Architected by @vanrobo[/dim][/darker]")
+    console.print(f"{dot} [bold][primary]PrintOps Terminal Agent[/primary][/bold] [gray]ready in[/gray] [accent]{duration_ms}ms[/accent]")
+    console.print(f"{line}[dim][darker]Architected by @vanrobo[/dim][/darker]")
     console.print(line)
 
 def setup_hardware():
@@ -67,7 +83,7 @@ def setup_hardware():
 
     printer = config_manager.get_current_printer()
     while not printer:
-        console.print(dot, "[bold yellow]Hardware Setup Wizard[/bold yellow]")
+        console.print(f"{dot} [bold yellow]Hardware Setup Wizard[/bold yellow]")
         for k, v in config_manager.SUPPORTED_PRINTERS.items():
             console.print(f"{line}   {k}. [white]{v['name']}[/white]")
         p_choice = Prompt.ask(f"{line} [primary]Select Printer[/primary]", choices=list(config_manager.SUPPORTED_PRINTERS.keys()))
@@ -81,7 +97,7 @@ def run_pipeline(module, user_args, printer_profile, slicer_path, final_name, ba
     try:
         base_out = get_output_dir()
         
-        # FOLDER LOGIC: Group into a single batch folder if requested, else individual folders
+        # FOLDER LOGIC
         if batch_folder_name:
             output_dir = base_out / batch_folder_name
         else:
@@ -93,7 +109,7 @@ def run_pipeline(module, user_args, printer_profile, slicer_path, final_name, ba
         # FORGING LOOP (Allows previewing and reconfiguring)
         while True:
             if not batch_mode:
-                with console.status(f"{line} [dim]Forging {final_name}...[/dim]"):
+                with console.status(f"{line} [dim]Forging [white]{final_name}[/white]...[/dim]"):
                     module.generate(str(stl_path), **user_args)
             else:
                 module.generate(str(stl_path), **user_args)
@@ -101,7 +117,7 @@ def run_pipeline(module, user_args, printer_profile, slicer_path, final_name, ba
             if batch_mode:
                 break 
 
-            console.print(dot, "[bold yellow]Forge Complete.[/bold yellow]")
+            console.print(f"{dot} [bold accent]Forge Complete.[/bold accent]")
             action = Prompt.ask(f"{line} [white][V]iew | [S]lice | [R]econfigure[/white]", choices=["V", "S", "R"], default="S").upper()
 
             if action == "V":
@@ -117,7 +133,7 @@ def run_pipeline(module, user_args, printer_profile, slicer_path, final_name, ba
 
         # SLICING
         if not batch_mode:
-            console.print(dot, f"[bold]Slicing Engine[/bold] [darker]--Target: {printer_profile['name']}[/darker]")
+            console.print(f"{dot} [bold]Slicing Engine[/bold] [darker]--Target: {printer_profile['name']}[/darker]")
             for _ in track(range(1), description=f"{line} [dim]Computing Machine Code...[/dim]", console=console):
                 gcode = slicer_engine.run_slicer(slicer_path, str(stl_path), printer_profile["profile"])
         else:
@@ -127,20 +143,17 @@ def run_pipeline(module, user_args, printer_profile, slicer_path, final_name, ba
         stats = slicer_engine.parse_gcode(gcode)
         if not batch_mode:
             console.print(line)
-            console.print(dot, f"[bold green]SUCCESS:[/bold green] [white]{final_name}[/white]")
-            console.print(line, f"[darker]Mass   :[/darker] {stats.get('weight', 'N/A')} | [darker]Time:[/darker] {stats.get('time', 'N/A')}")
-            console.print(line, f"[darker]Folder :[/darker] [primary]{output_dir.absolute()}[/primary]")
+            console.print(f"{dot} [bold green]SUCCESS:[/bold green][white]{final_name}[/white]")
+            console.print(f"{line} [darker]Mass   :[/darker] [accent]{stats.get('weight', 'N/A')}[/accent] |[darker]Time:[/darker] [accent]{stats.get('time', 'N/A')}[/accent]")
+            console.print(f"{line} [darker]Folder :[/darker][primary]{output_dir.absolute()}[/primary]")
             console.print(line)
             
         return stats
 
     except Exception as e:
-        console.print(line, f"[bold red]Pipeline Failure on {final_name}:[/bold red] {e}")
+        console.print(f"{line} [bold red]Pipeline Failure on {final_name}:[/bold red] {e}")
         return None
 
-# ==========================================
-# BATCH PROCESSING
-# ==========================================
 
 def generate_example_batch():
     example = """# PRINTOPS MASS PRODUCTION BATCH FILE
@@ -160,7 +173,7 @@ VIBESLAYER | font = Arial | width = 120
 
 def run_batch_processor(filepath, module, printer, s_path, display_name):
     if not os.path.exists(filepath):
-        console.print(line, f"[bold red]File not found: {filepath}[/bold red]")
+        console.print(f"{line} [bold red]File not found: {filepath}[/bold red]")
         return
 
     jobs, globals_params =[], {}
@@ -186,15 +199,15 @@ def run_batch_processor(filepath, module, printer, s_path, display_name):
     master_batch_folder = f"BATCH_RUN_{display_name}_{time.strftime('%H%M%S')}"
     base_out = get_output_dir()
 
-    console.print(dot, f"[bold]Batch Initialized:[/bold] Found {len(jobs)} items.")
-    console.print(line, f"[dim]Target Directory: {base_out}/{master_batch_folder}[/dim]")
+    console.print(f"{dot} [bold]Batch Initialized:[/bold] Found [accent]{len(jobs)}[/accent] items.")
+    console.print(f"{line} [dim]Target Directory: {base_out}/{master_batch_folder}[/dim]")
     
     for i, job in enumerate(jobs, 1):
-        console.print(dot, f"[dim]Processing {i}/{len(jobs)}:[/dim] [white]{job['text']}[/white]")
+        console.print(f"{dot} [dim]Processing {i}/{len(jobs)}:[/dim] [white]{job['text']}[/white]")
         current_args = {}
         for p_name, info in module.PARAMS.items():
             raw_val = job['args'].get(p_name, globals_params.get(p_name, info['default']))
-            if p_name in ['text', 'name']: raw_val = job['text']
+            if p_name in['text', 'name']: raw_val = job['text']
             current_args[p_name] = info['type'](raw_val)
 
         ident = job['text'].replace(" ", "_")
@@ -203,14 +216,10 @@ def run_batch_processor(filepath, module, printer, s_path, display_name):
         stats = run_pipeline(module, current_args, printer, s_path, final_name, batch_mode=True, batch_folder_name=master_batch_folder)
         
         if stats: 
-            console.print(line, f"[darker]↳ Mass: {stats.get('weight','N/A')} | Time: {stats.get('time','N/A')}[/darker]")
+            console.print(f"{line} [darker]↳ Mass: [accent]{stats.get('weight','N/A')}[/accent] | Time: [accent]{stats.get('time','N/A')}[/accent][/darker]")
 
     console.print(line)
-    console.print(dot, f"[bold green]Batch Complete![/bold green] All outputs saved to [primary]{base_out}/{master_batch_folder}[/primary]")
-
-# ==========================================
-# INTERACTIVE MENU (DEFAULT ROUTER)
-# ==========================================
+    console.print(f"{dot}[bold green]Batch Complete![/bold green] All outputs saved to [primary]{base_out}/{master_batch_folder}[/primary]")
 
 @app.callback(invoke_without_command=True)
 def main_router(ctx: typer.Context):
@@ -222,11 +231,11 @@ def interactive_menu():
     show_header()
     s_path, printer = setup_hardware()
 
-    console.print(dot, "[bold]Operational Mode[/bold]")
+    console.print(f"{dot} [bold]Operational Mode[/bold]")
     console.print(f"{line}   1. Standard Single Template")
     console.print(f"{line}   2. Custom Model Modifier")
     console.print(f"{line}   3. Load Saved Recipe")
-    console.print(f"{line}   4. Mass Production [yellow](Batch .txt)[/yellow]")
+    console.print(f"{line}   4. Mass Production [accent](Batch .txt)[/accent]")
     mode = Prompt.ask(f"{line} [primary]Choice[/primary]", choices=["1", "2", "3", "4"], default="1")
 
     module = None
@@ -235,12 +244,12 @@ def interactive_menu():
     if mode in ["1", "4"]:
         root = Path("templates")
         cats =[d.name for d in root.iterdir() if d.is_dir() and d.name not in["__pycache__", "custom"]]
-        console.print(dot, "[bold]Category[/bold]")
-        for i, c in enumerate(cats, 1): console.print(f"{line}   {i}.[white]{c.capitalize()}[/white]")
+        console.print(f"{dot} [bold]Category[/bold]")
+        for i, c in enumerate(cats, 1): console.print(f"{line}   {i}. [white]{c.capitalize()}[/white]")
         selected_cat = cats[int(Prompt.ask(f"{line} [primary]Choice[/primary]", choices=[str(i) for i in range(1, len(cats)+1)])) - 1]
 
         mods =[f.stem for f in (root / selected_cat).glob("*.py") if f.name != "__init__.py"]
-        console.print(dot, "[bold]Model[/bold]")
+        console.print(f"{dot} [bold]Model[/bold]")
         for i, m in enumerate(mods, 1): console.print(f"{line}   {i}. [white]{m.capitalize()}[/white]")
         selected_mod = mods[int(Prompt.ask(f"{line} [primary]Choice[/primary]", choices=[str(i) for i in range(1, len(mods)+1)])) - 1]
         
@@ -254,9 +263,9 @@ def interactive_menu():
     elif mode == "3":
         saved = project_manager.list_saved_projects()
         if not saved: 
-            console.print(line, "[bold red]No saved recipes found.[/bold red]")
+            console.print(f"{line} [bold red]No saved recipes found.[/bold red]")
             return
-        console.print(dot, "[bold]Saved Recipes[/bold]")
+        console.print(f"{dot} [bold]Saved Recipes[/bold]")
         for i, p in enumerate(saved, 1): console.print(f"{line}   {i}. [white]{p}[/white]")
         p_name = saved[int(Prompt.ask(f"{line}[primary]Choice[/primary]", choices=[str(i) for i in range(1, len(saved)+1)])) - 1]
         
@@ -282,13 +291,12 @@ def interactive_menu():
 
     user_args = {}
     if hasattr(module, 'PARAMS'):
-        console.print(dot, "[bold]Configuration[/bold]")
+        console.print(f"{dot} [bold]Configuration[/bold]")
         if mode == "2":
             for p in['file', 'text', 'size']:
                 val = Prompt.ask(f"{line} [primary]{module.PARAMS[p]['desc']}[/primary]", default=str(module.PARAMS[p]['default']))
                 user_args[p] = module.PARAMS[p]['type'](val)
             user_args['file'] = user_args['file'].strip('"').strip("'")
-            # --- SAFETY CHECK: Did the user provide a real file? ---
             if not os.path.isfile(user_args['file']):
                 console.print(line)
                 console.print(Panel(
@@ -324,17 +332,12 @@ def interactive_menu():
     ident = user_args.get('text', user_args.get('name', 'job')).replace(" ", "_")
     final_name = f"{display_name}_{ident}_{time.strftime('%H%M')}"
 
-    if mode == "2" and Confirm.ask(f"{line} [yellow]Save recipe?[/yellow]"):
+    if mode == "2" and Confirm.ask(f"{line} [bold accent]Save recipe?[/bold accent]"):
         p_name = Prompt.ask(f"{line} [primary]Recipe Name[/primary]", default=ident.lower())
         path = project_manager.save_custom_project(p_name, user_args)
         console.print(f"{line} [dim]Saved to {path}[/dim]")
 
     run_pipeline(module, user_args, printer, s_path, final_name)
-
-
-# ==========================================
-# CLI POWER-USER COMMANDS
-# ==========================================
 
 @app.command(name="build")
 def cli_build(
@@ -369,11 +372,11 @@ def cli_build(
 def cli_list():
     """List all available manufacturing categories and templates."""
     console.print(line)
-    console.print(dot, "[bold]Available Template Library[/bold]")
+    console.print(f"{dot} [bold]Available Template Library[/bold]")
     
     root = Path("templates")
     if not root.exists():
-        console.print(f"{line}[red]No templates folder found.[/red]")
+        console.print(f"{line} [red]No templates folder found.[/red]")
         return
 
     cats =[d for d in root.iterdir() if d.is_dir() and d.name not in ["__pycache__", "custom"]]
@@ -411,7 +414,8 @@ def cli_batch(
 @app.command(name="config")
 def cli_config(
     reset: bool = typer.Option(False, "--reset", help="Wipes the current hardware configuration"),
-    set_outdir: Optional[str] = typer.Option(None, "--set-outdir", help="Change the default output directory path")
+    set_outdir: Optional[str] = typer.Option(None, "--set-outdir", help="Change the default output directory path"),
+    set_theme: Optional[str] = typer.Option(None, "--set-theme", help="Change the UI color theme")
 ):
     """View, reset, or update your system configurations."""
     console.print(line)
@@ -420,21 +424,36 @@ def cli_config(
     if reset:
         if os.path.exists("user_preferences.json"):
             os.remove("user_preferences.json")
-        console.print(dot, "[bold green]Configuration wiped.[/bold green] You will be prompted to set it up on your next run.")
+        console.print(f"{dot} [bold green]Configuration wiped.[/bold green] You will be prompted to set it up on your next run.")
         console.print(line)
         return
 
-    # 2. Handle Directory Override Flag
+    # 2. Handle Theme Override Flag
+    if set_theme:
+        if set_theme.lower() in THEMES:
+            config_manager.save_pref("theme", set_theme.lower())
+            console.print(f"{dot} [bold green]Theme updated to:[/bold green] [primary]{set_theme.lower()}[/primary]")
+            console.print(f"{line} [dim]Run a new command to see the changes![/dim]")
+        else:
+            valid_themes = ", ".join(THEMES.keys())
+            console.print(f"{line} [bold red]Invalid theme![/bold red] Choose from: [accent]{valid_themes}[/accent]")
+        console.print(line)
+        return
+
+    # 3. Handle Directory Override Flag
     if set_outdir:
         config_manager.save_pref("output_dir", set_outdir)
-        console.print(dot, f"[bold green]Output directory updated to:[/bold green][white]{set_outdir}[/white]")
+        console.print(f"{dot} [bold green]Output directory updated to:[/bold green] [white]{set_outdir}[/white]")
         console.print(line)
         return
 
-    # 3. View Current Config
+    # 4. View Current Config
     prefs = config_manager.load_prefs()
-    console.print(dot, "[bold]Current Hardware Configuration[/bold]")
+    console.print(f"{dot} [bold]Current Configuration[/bold]")
     
+    curr_theme = prefs.get('theme', 'printops (Default)')
+    console.print(f"{line}   [darker]Active Theme:[/darker] [primary]{curr_theme}[/primary]")
+
     s_path = prefs.get('slicer_path', 'Not Configured')
     console.print(f"{line}   [darker]Slicer Engine:[/darker] [white]{s_path}[/white]")
     
@@ -446,7 +465,7 @@ def cli_config(
     console.print(f"{line}   [darker]Target Printer:[/darker] [primary]{p_name}[/primary]")
     
     out_dir = prefs.get('output_dir', 'outputs (Default)')
-    console.print(f"{line}   [darker]Output Directory:[/darker] [primary]{out_dir}[/primary]")
+    console.print(f"{line}[darker]Output Directory:[/darker] [primary]{out_dir}[/primary]")
     
     console.print(line)
 
@@ -459,7 +478,7 @@ def cli_clean(
     output_dir = get_output_dir()
     
     if not output_dir.exists() or not any(output_dir.iterdir()):
-        console.print(f"{line}\n{dot}[dim]Output directory ({output_dir}) is already empty.[/dim]\n{line}")
+        console.print(f"{line}\n{dot} [dim]Output directory ({output_dir}) is already empty.[/dim]\n{line}")
         return
 
     if not force:

@@ -54,13 +54,21 @@ Directly forge a specific part via the terminal.
 python main.py keychain "VANNY" --width 100
 ```
 
-### 3. All Commands
+### 3. All Commands & Customization
 
 Use the --help flag infront of any command to get information on it.
 
 ```bash
 python main.py --help
 ```
+
+To change themes, you may use the --set-theme flag infront of the config command.
+
+```bash
+python main.py config --set-theme theme_name
+```
+
+A list of available themes: `printops,cyberpunk,hacker,ocean,dracula,nord,retro,forest,sunset,monochrome`
 
 ## 🛠️ Calibration & Custom Models
 
