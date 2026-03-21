@@ -1,0 +1,9 @@
+saved_projects/
+outputs/
+tempCodeRunnerFile.py
+user_preferences.json
+*.pyc
+calibration_preview.stl
+preview_marker.stl
+example_batch.txt
+demo.tape
