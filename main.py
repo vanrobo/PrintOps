@@ -288,7 +288,18 @@ def interactive_menu():
                 val = Prompt.ask(f"{line} [primary]{module.PARAMS[p]['desc']}[/primary]", default=str(module.PARAMS[p]['default']))
                 user_args[p] = module.PARAMS[p]['type'](val)
             user_args['file'] = user_args['file'].strip('"').strip("'")
-            
+            # --- SAFETY CHECK: Did the user provide a real file? ---
+            if not os.path.isfile(user_args['file']):
+                console.print(line)
+                console.print(Panel(
+                    f"[bold red]FATAL ERROR: File not found![/bold red]\n\n"
+                    f"[yellow]You provided:[/yellow] {user_args['file']}\n"
+                    f"[white]This looks like a folder or a file that doesn't exist.\n"
+                    f"Make sure your path ends with the actual [cyan].stl[/cyan] or [cyan].step[/cyan] file.[/white]", 
+                    border_style="red"
+                ))
+                return
+
             if Confirm.ask(f"{line} [bold yellow]Open Visual GUI Calibrator?[/bold yellow]"):
                 console.print(f"{line} [dim]Launching 3D Window...[/dim]")
                 final_coords = module.calibrate(user_args['file'], user_args['text'], user_args['size'])
