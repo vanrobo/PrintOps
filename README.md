@@ -30,7 +30,7 @@ Ensure you have Python 3.11+ and your preferred slicing engine (e.g., PrusaSlice
 
 ```bash
 # Clone the repository
-git clone [https://github.com/yourusername/printops.git](https://github.com/yourusername/printops.git)
+git clone https://github.com/vanrobo/PrintOps.git
 cd printops
 
 # Install system dependencies
